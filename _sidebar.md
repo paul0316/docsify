@@ -3,6 +3,7 @@
   - [Java容器](docs/00-Java容器.md)
   - [Java多线程](docs/00-Java多线程.md)
   - [Java虚拟机](docs/00-Java虚拟机.md)
+  - [设计模式](docs/00-设计模式.md)
 - 数据库
   - [MySQL](docs/01-MySQL.md)
   - [Oracle](docs/01-Oracle.md)

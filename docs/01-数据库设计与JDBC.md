@@ -135,7 +135,21 @@ String sql = "select order_id orderId, order_name orderName, order_date orderDat
 
 
 
-解决SQL注入问题
+### 解决SQL注入问题
+
+Statement存在SQL注入问题
+
+占位符起到很大的作用
+
+PrepareStatement会预编译SQL语句
+
+
+
+除了解决SQL注入问题之外，PrepareStatement的优势
+
+1. PrepareStatement可以操作图片，视频，Blob的数据，占位符可以传入流。
+
+2. PrepareStatement可以实现更高效的批量操作。
 
 
 
@@ -143,7 +157,30 @@ String sql = "select order_id orderId, order_name orderName, order_date orderDat
 
 
 
+JDBC API 小结
 
+- 两种思想
+  - 面向接口编程
+  - ORM思想（Object Relational Mapping）
+    - 一个数据表对应一个 java 类
+    - 表中的一条记录对于 java 类的一个对象
+    - 表中的一个字段对于 java 类的一个属性
+
+> sql 需要结合列名和表的属性名来写，注意起别名。
+
+
+
+- 两种技术
+  - JDBC 结果集的元数据：ResultSetMetaData
+    - 获取列数：getColumnCount()
+    - 获取列的别名：getColumnLabel()
+  - 通过反射，创建指定类的对象，获取指定的属性并且赋值
+
+
+
+
+
+ 
 
 
 
