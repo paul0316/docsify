@@ -692,7 +692,59 @@ System.out.println("b="+b);
 
 
 
+File类的使用
 
+
+
+IO流概述
+
+
+
+节点流（或文件流）
+
+
+
+缓冲流
+
+
+
+
+
+转换流的使用
+
+​	编码集
+
+
+
+其他流的使用
+
+
+
+
+
+对象流的使用
+
+ObjectInputStream：存储中的文件、通过网络接手过来--->内存中的对象（序列化过程）
+
+ObjectOutputStream：内存中的对象--->存储中的文件、通过网络传输出去（反序列化过程）
+
+
+
+
+
+
+
+RandomAccessFile的使用
+
+
+
+
+
+
+
+
+
+File、Path、Files的使用
 
 
 
@@ -704,3 +756,217 @@ System.out.println("b="+b);
 
 ## 反射
 
+### 概述
+
+加载完类之后，在堆内存中的方法区就产生一个 Class 类型的对象（一个类只有一个 Class 对象），这个对象就包含了完整的类的结构信息。我们可以通过这个对象看到类的结构。
+
+
+
+```
+正常方式：引入需要的“包类”名称--->通过new实例化-->取得实例化对象
+
+反射方式：实例化对象--->getClass()方法--->得到完整的“包类”名称
+```
+
+
+
+反射相关的主要 API
+
+java.lang.Class：代表一个类
+
+java.lang.reflect.Method：代表类的方法
+
+java.lang.reflect.Field：代表类的成员变量
+
+java.lang.reflect.Construtor：代表类的构造器
+
+
+
+例子：
+
+```java
+
+```
+
+
+
+
+
+
+
+### 理解Class类并获取Class实例
+
+
+
+获取Class实例的4种方式
+
+```java
+
+```
+
+
+
+哪些类型可以有Class对象？
+
+class：外部类
+
+interface：
+
+[]：
+
+enum：
+
+annotation：
+
+primitive type：
+
+void：
+
+
+
+### 类的加载和ClassLoader的理解（学习 JVM）
+
+类的加载：**将类的class文件读入内存，并为之创建一个java.lang.Class对象。此过程由类加载器完成。**
+
+
+
+类的链接：将类的二进制数据合并到 JRE 中。
+
+
+
+类的初始化：JVM 负责对类进行初始化。
+
+
+
+```
+源代码--->Java编译器--->.class文件--->类加载器--->字节码校验器--->解释器--->操作系统
+```
+
+
+
+
+
+
+
+
+
+
+
+### 创建运行时类的对象
+
+
+
+```java
+package com.imooc.test;
+
+import org.junit.Test;
+
+// 通过反射创建运行时类的对象
+public class NewInstanceTest {
+    @Test
+    public void test1() throws IllegalAccessException, InstantiationException {
+        /*
+        newInstance()：调用此方法，创建对于的运行时类对象。内部调用了运行时类的空参构造器
+        要想此方法正常的创建运行时类的对象，要求：
+        1. 运行时类必须要有空参的构造器
+        2. 空参的构造器的访问权限得够。通常设置为public
+
+        在javabean中要求提供一个空参构造器。原因：
+        1. 便于通过反射，创建运行时类的对象
+        2. 便于子类继承运行时类时，默认调用super()时，保证父类有此构造器
+         */
+        Class clazz = Person.class;
+        Person person = (Person) clazz.newInstance();
+        System.out.println(person);
+    }
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 获取运行时类的完整结构
+
+
+
+```java
+// 
+
+```
+
+
+
+
+
+
+
+
+
+
+
+### 调用运行时类的指定结构
+
+
+
+
+
+
+
+### 反射的应用：动态代理（重点内容）
+
+```java
+// 体会反射的动态性
+@Test
+public void test2() {
+
+    for (int i = 0; i < 100; i++) {
+        int num = new Random().nextInt(3); // 0, 1, 2
+        String classPath = "";
+        switch(num) {
+            case 0:
+                classPath = "java.util.Date";
+                break;
+            case 1:
+                classPath = "java.lang.Object";
+                break;
+            case 2:
+                classPath = "com.imooc.test.Person";
+                break;
+        }
+
+        try {
+            Object obj = getInstance(classPath);
+            System.out.println(obj);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+public Object getInstance(String classPath) throws Exception {
+    Class clazz = Class.forName(classPath);
+    return clazz.newInstance();
+}
+}
+```
+
+
+
+
+
+JDK 动态代理
+
+
+
+
+
+CGLib 动态代理
