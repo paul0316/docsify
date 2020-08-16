@@ -23,6 +23,7 @@
 - 计算机基础
   - [计算机网络](docs/03-计算机网络.md)
   - [操作系统](docs/03-操作系统.md)
+  - [Linux](docs/03-Linux.md)
 - Java EE框架
   - [Spring](docs/04-Spring.md)
   - [SpringMVC](docs/04-SpringMVC.md)
