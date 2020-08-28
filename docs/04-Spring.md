@@ -1,5 +1,7 @@
 # Spring
 
+## Spring概述
+
 
 
 在学习 Spring 框架前，先让我们回顾一下之前学习的知识。
@@ -44,6 +46,24 @@ public class JdbcDemo1 {
 
 
 
+
+
+## IoC的概念和作用
+
+
+
+### 程序的耦合和解耦
+
+#### 程序的耦合
+
+
+
+
+
+
+
+#### 程序的解耦
+
 解耦和思路：
 
 第一步：使用反射来创建对象，而避免使用new关键字（新的问题：写死了，不能更改）
@@ -54,19 +74,20 @@ public class JdbcDemo1 {
 
 
 
-
-
-
-
 表现层调用业务层，业务层调用持久层，这就导致了程序的耦合程度很高，现在需要解决这个问题。
 
-使用工厂模式来解决：
+可以使用**工厂模式**来解决：
 
 首先，需要一个配置文件来配置我们的service和dao，配置文件应该包含唯一标识——全限定类名；然后读取配置文件，通过反射的方式来创建对象。
 
 
 
+```java
+// 
+private AccountDao accountDao = new AccountDaoImpl();
 
+private AccountDao accountDao = (AccountDao) BeanFactory.getBean("accountDao");
+```
 
 
 
@@ -78,82 +99,135 @@ public class JdbcDemo1 {
 
 
 
+使用工厂模式解耦中存在的问题以及改造
 
+单例模式和多例模式的区别？
 
-学习到12课
-
-
-
-
-
-我们还需要先了解动态代理技术，动态代理大致可分为 JDK 动态代理和 CGLib动态代理。
-
-JDK 动态代理
-
-1. 编写需要被代理的类和接口
+单例模式只被创建一次，类中的成员只会初始化一次。
 
 ```java
-// 定义接口
-public interface HelloWorld {
-    public void sayHelloWorld();
-}
+com.itheima.service.impl.AccountServiceImpl@4554617c
+com.itheima.service.impl.AccountServiceImpl@74a14482
+com.itheima.service.impl.AccountServiceImpl@1540e19d
+com.itheima.service.impl.AccountServiceImpl@677327b6
+com.itheima.service.impl.AccountServiceImpl@14ae5a5
+```
 
-// 编写类来实现接口
-public class HelloWorldImpl implements HelloWorld {
-    @Override
-    public void sayHelloWorld() {
-        System.out.println("Hello World");
+此时的情况是多例
+
+多例模式的对象被创建多次，执行效率没有单例对象好
+
+
+
+
+
+
+
+尽量不要定义类成员变量，定义为方法内部的变量。
+
+
+
+准备一个 Map 把存储好，不必反复创建对象。
+
+在业务层和持久层很少了类成员变量，在这种情况下，单例模式的效果会更好。
+
+```java
+public class BeanFactory {
+
+    private static Properties props;
+
+    // 定义一个map，用于存放我们要创建的对象，成为容器
+    private static Map<String, Object> beans;
+
+    // 使用静态代码块为 Properties 对象赋值
+    // 静态代码块只初始化一次，在加载的时候就已经把map都准备好了
+    static {
+        try {
+            // 实例化对象
+            props = new Properties();
+            // 获取Properties文件的流对象
+            InputStream in = BeanFactory.class.getClassLoader().getResourceAsStream("bean.properties");
+            props.load(in);
+
+            // 实例化容器
+            beans = new HashMap<String, Object>();
+            // 取出配置文件中所有的key
+            Enumeration keys = props.keys();
+            // 遍历这个枚举类
+            while (keys.hasMoreElements()) {
+                // 取出每个key
+                String key = keys.nextElement().toString();
+                // 根据key获取value
+                String beanPath = props.getProperty(key);
+                // 反射创建对象
+                Object value = Class.forName(beanPath).newInstance();
+                // 把key和value存入容器中
+                beans.put(key, value);
+            }
+        } catch (Exception e) {
+            throw new ExceptionInInitializerError("初始化Properties失败");
+        }
+    }
+
+    // 根据Bean的名称获取bean对象
+//    public static Object getBean(String beanName) {
+////        Object bean = null;
+////        try {
+////            String beanPath = props.getProperty(beanName);
+//////            System.out.println(beanPath);
+////            bean = Class.forName(beanPath).newInstance(); // 每次都会调用默认构造函数创建对象
+////        } catch (Exception e) {
+////            e.printStackTrace();
+////        }
+////        return bean;
+////    }
+
+    // 根据bean的名称获取对象，这是单例模式
+    public static Object getBean(String beanName) {
+        return beans.get(beanName);
     }
 }
 ```
 
-2. 编写代理类，需要实现InvocationHandler接口，重写invoke方法
 
-```java
-public class JdkProxyExample implements InvocationHandler {
-    // 需要代理的类对象
-    private Object target;
- 
-    public DynamicLogProxy(Object target) {
-        this.target = target;
-    }
- 
-    /**
-     * @param obj    被代理对象
-     * @param method 对象方法
-     * @param args   方法参数
-     * @return
-     * @throws Throwable
-     */
-    @Override
-    public Object invoke(Object obj, Method method, Object[] args) throws Throwable {
-        log.info("这里是日志记录切面，日志开始……");
-        // 使用方法的反射
-        Object obj = method.invoke(target, args);
-        log.info("这里是日志记录切面，日志结束……");
-        return obj;
-    }
-}
+
+
+
+#### IoC（Inversion of Control）控制反转
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 使用 SpringIoC 解决程序的耦合
+
+springioc必备jar包
+
+```
+commons-logging
+beans
+context
+core
+expression
+jcl：spring把日志commons-logging集成到jcl包下了
+aop：
 ```
 
 
 
-3. 使用 Proxy.newProxyInstance(ClassLoader loader,Class<?>[] interfaces,InvocationHandler h) 动态创建代理类对象，通过代理类对象调用业务逻辑。
 
-```java
-	/**
-     * 测试JDK动态代理实现的日志代理类
-     */
-    @Test
-    public void testDynamicLogProxy() {
-        HelloWorldImpl helloWorld = new HelloWorldImpl();
-        Class<?> clazz = helloWorld.getClass();
-        JdkProxyTemplate logProxyHandler = new DynamicLogProxy(orderService);
-        //通过Proxy.newProxyInstance(类加载器, 接口s, 事务处理器Handler) 加载动态代理
-        OrderService os = (OrderService) Proxy.newProxyInstance(clazz.getClassLoader(), clazz.getInterfaces(), logProxyHandler);
-        os.reduceStock();
-    }
-```
+
+
+
+学到17课
 
 
 
