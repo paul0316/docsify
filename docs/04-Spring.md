@@ -48,7 +48,7 @@ public class JdbcDemo1 {
 
 
 
-## IoC的概念和作用
+## Spring IoC
 
 
 
@@ -207,7 +207,7 @@ public class BeanFactory {
 
 
 
-## 使用 SpringIoC 解决程序的耦合
+### 使用 SpringIoC 解决程序的耦合
 
 springioc必备jar包
 
@@ -229,77 +229,335 @@ aop：
 
 学到17课
 
+### 创建 bean 的方式
+
+- 创建 bean 的三种方式
+
+```xml
+<!--第一种方式：使用默认构造函数创建：
+在Spring配置文件中，使用bean标签配置id和class属性后，且没有其他标签时。
+采用的就是默认的构造函数创建bean对象。如果该类中没有默认构造函数，则对象无法创建
+-->
+<bean id="accountService" class="com.itheima.service.impl.AccountServiceImpl">
+```
 
 
 
+```xml
+<!--第二种方式：使用普通工厂的方式创建对象（使用某个类中的方法创建对象，并存入Spring容器中-->
+<bean id="instanceFactory" class="com.itheima.factory.InstanceFactory"></bean>
+<bean id="accountService" factory-bean="instanceFactory" factory-method="getAccountService"></bean>
+```
 
-## Spring的Bean管理
-
-### xml方式
-
-
-
-
-
-
-
-
-
-### 注解方式
-
-如何注解定义Bean
-
-@Component：描述Spring框架中Bean
-
-@Repository：用于对DAO实现类进行标注
-
-@Service：用于对Service实现类进行标注
-
-@Controller：用于对Controller实现类进行标注
-
-这三个注解是为了标注类本身的用途更加清晰
-
-
-
-
-
-
-
-## 属性注入的方式
-
-
-
-### xml方式
-
-
-
-
-
-属性注入的方法
-
-
-
-构造方法属性注入
+下面这个工厂类中有方法 `getAccountService()` ，可以通过这个方法来创建 bean 对象
 
 ```java
-public class SpringDemo4 {
-    @Test
-    public void demo1() {
-        ApplicationContext applicationContext = new ClassPathXmlApplicationContext("applicationContext.xml");
-        User user = (User)applicationContext.getBean("user");
-        System.out.println(user);
+/*
+* 模拟一个工厂类，该类可能存在与jar，我们无法修改源码的方式来提供默认构造函数
+* */
+public class InstanceFactory {
+    public AccountService getAccountService() {
+        return new AccountServiceImpl();
     }
 }
 ```
 
 
 
-xml文件
+
 
 ```xml
-<bean id="user" class="com.imooc.ioc.demo4.User">
-	<constructor-arg name="name" value="张三"/>
-	<constructor-arg name="age" value="23"/>
+<!--第三种方式：使用工厂中的静态方法创建对象（使用某个类中的静态方法创建对象，并存入Spring容器-->
+<bean id="accountService" class="com.itheima.factory.StaticFactory" factory-method="getAccountService"></bean>
+```
+
+下面的工厂类中有静态方法 `getAccountService()` ，可以通过这个方法来创建 bean 对象
+
+```java
+/*
+* 模拟一个工厂类，该类可能存在与jar，我们无法修改源码的方式来提供默认构造函数
+* */
+public class StaticFactory {
+    public static AccountService getAccountService() {
+        return new AccountServiceImpl();
+    }
+}
+```
+
+
+
+
+
+- bean 的作用范围
+
+单例模式以及多例模式
+
+
+
+```xml
+<!--
+    bean的作用范围调整
+    bean标签的scope属性：
+        作用：用于指定bean的作用范围
+        取值：
+            singleton：单例（默认值）
+            prototype：多例
+            request：作用于web应用的请求范围
+            session：左右于web应用的会话范围
+            global-session：作用于集群环境的会话范围（全局会话范围），但不是集群环境时候，他就是session
+-->
+<bean id="accountService" class="com.itheima.service.impl.AccountServiceImpl" scope="singleton"></bean>
+```
+
+
+
+对 global-session（全局 session） 的理解：
+
+当服务器的访问量过大，需要使用集群的方式，来降低每台服务器的负荷。
+
+验证码一份存在表单当中，一份存在服务器的 session 域中。
+
+![image-20200904231838216](C:\Users\Paul\Pictures\typora\Spring\Spring-01.png)
+
+
+
+
+
+
+
+- bean 的生命周期
+
+
+
+```xml
+<!--
+    bean对象的生命周期
+        单例对象：
+            出生：当容器创建时对象出生，解析完配置文件就创建
+            活着：只要容器还在，对象一直活着
+            死亡：容器销毁，对象消亡
+            总结：单例对象的生命周期和容器相同
+        多例对象：
+            出生：当使用对象时，Spring容器为我们创建对象
+            活着：对象只要还在使用过程就会一直活着
+            死亡：当对象长时间不使用，且没有别的对象引用，由Java的垃圾回收器回收
+-->
+<bean id="accountService" class="com.itheima.service.impl.AccountServiceImpl"
+      scope="singleton" init-method="init" destroy-method="destroy"></bean>
+```
+
+
+
+以下是 Main.java 的内容
+
+```java
+public class MainApp {
+    /*
+        获取Spring的IoC的核心容器并根据id获取对象
+
+        ApplicationContext的三个常用实现类
+            ClassPathXmlApplicationContext：可以加载类路径下的配置文件，要求配置文件必须在类路径下。不在的话，加载不了。
+            FileSystemXmlApplicationContext：可以加载磁盘任意路径下的配置文件（必须有访问权限）
+
+            AnnotationConfigApplicationContext：用于读取注解创建容器
+
+        核心容器的两个接口引发的问题：
+        ApplicationContext：单例对象适用scope=singleton    实际开发使用多
+            它在构建核心容器时，创建对象采取的策略是立即加载的方式。也就是说，一读取完配置文件马上就创建配置的对象
+        BeanFactory：多例对象适用scope=prototype
+            它在构建核心容器时，创建对象采取的策略是延迟加载的方式。也就是说，什么时候根据id获取对象了，什么时候才真正创建对象。
+        什么时候需要立即加载？什么时候需要延迟加载？
+
+     */
+    public static void main(String[] args) {
+        // 1. 获取核心容器对象，通过bean.xml配置文件
+        ClassPathXmlApplicationContext ac = new ClassPathXmlApplicationContext("bean.xml");
+
+        // 2. 根据id获取配置文件bean.xml中配置的bean对象
+        // 两种方式：一种是先拿到Object类型，然后我们进行强制转换为需要的类型
+        AccountService as1 = (AccountService) ac.getBean("accountService");
+//        AccountService as2 = (AccountService) ac.getBean("accountService");
+
+        // 第二种方式：传递一个字节码
+//        AccountDao adao = ac.getBean("accountDao", AccountDao.class);
+
+        System.out.println(as1);
+        as1.saveAccount();
+
+        // 手动关闭容器
+        ac.close();
+
+//        System.out.println(as2);
+//        System.out.println(as1 == as2);
+        /*//---------------------beanfactory---------------------//
+        Resource resource = new ClassPathResource("bean.xml");
+        BeanFactory beanFactory = new XmlBeanFactory(resource);
+        */
+
+    }
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+### Spring 的依赖注入（Dependency Injection）
+
+
+
+```xml
+<!--
+    Spring的依赖注入（DI，Dependency Injection）
+        IoC的作用：降低程序的耦合
+        依赖关系的管理：以后都交给Spring来维护
+        在当前类需要用到其他类的对象，由Spring为我们提供，我们只需要在配置文件中说明
+        依赖关系的维护就称之为依赖注入。
+    能够注入的数据有三类：
+        基本类型和String
+        其他bean类型（在配置文件或者注解中配置过的bean）
+        复杂类型/集合类型
+    注入的方式有三种：
+        构造函数提供
+        set方法提供
+        使用注解提供
+-->
+```
+
+
+
+- 使用构造函数注入
+
+
+
+```xml
+<!--使用构造函数注入
+    使用的标签：constructor-arg
+    标签出现的位置：bean标签内部；
+    标签中的属性
+        type：用于指定注入的数据的类型，该数据类型也是构造函数中某个或者某些参数的类型
+        index：用于指定要注入的数据给构造函数中指定索引位置的参数赋值。索引位置从0开始
+        name：用于指定给构造函数中指定名称的参数赋值                        常用
+        ==================以上三个用于给构造函数中的参数赋值===================
+        value：用于提供基本类型和String类型的数据
+        ref：用于指定其他bean类型数据。他指的就是SpringIoC的核心容器中出现过的bean对象
+-->
+<bean id="accountService" class="com.itheima.service.impl.AccountServiceImpl">
+    <constructor-arg name="name" value="test"></constructor-arg>
+    <constructor-arg name="age" value="18"></constructor-arg>
+    <constructor-arg name="birthday" value="1970-01-01"></constructor-arg>
+</bean>
+```
+
+
+
+出现的问题
+
+```
+Could not convert argument value of type [java.lang.String] to required type [java.util.Date]: Failed to convert value of type 'java.lang.String' to required type 'java.util.Date';
+```
+
+
+
+解决方法：
+
+
+
+
+
+构造函数注入数据的方式的优点是：在获取bean对象时，注入数据是必须的操作，否则对象无法创建成功。
+
+弊端是：改变了bean对象的实例化方式，使我们在创建对象时，用不到这些数据，也必须提供。
+
+
+
+
+
+- set 方法注入
+
+
+
+```xml
+<!--
+    set方法注入：
+    涉及的标签：property
+    出现的位置：bean标签内部
+    标签的属性：
+        name：用于指定注入时所调用的set方法名称                        常用
+        value：用于提供基本类型和String类型的数据
+        ref：用于指定其他bean类型数据。他指的就是SpringIoC的核心容器中出现过的bean对象
+-->
+<bean id="accountService2" class="com.itheima.service.impl.AccountServiceImpl2">
+    <property name="name" value="test"></property>
+    <property name="age" value="21"></property>
+    <property name="birthday" ref="now"></property>
+</bean>
+```
+
+
+
+优势：创建对象时没有明确的限制，可以直接使用默认构造函数
+
+弊端：如果某个成员必须有值，则获取对象时有可能set方法没有执行
+
+
+
+
+
+```xml
+<!--集合/复杂类型的注入
+        用于给List结构集合注入的标签：
+            list array set
+        用于给Map结构集合注入的标签
+            map props
+        结构相同，标签可以互换
+-->
+<bean id="accountService3" class="com.itheima.service.impl.AccountServiceImpl3">
+    <property name="myStrs">
+        <array>
+            <value>AAA</value>
+            <value>BBB</value>
+            <value>CCC</value>
+        </array>
+    </property>
+
+    <property name="myList">
+        <array>
+            <value>AAA</value>
+            <value>BBB</value>
+            <value>CCC</value>
+        </array>
+    </property>
+
+    <property name="mySet">
+        <array>
+            <value>AAA</value>
+            <value>BBB</value>
+            <value>CCC</value>
+        </array>
+    </property>
+
+    <property name="myMap">
+        <map>
+            <entry key="testA" value="aaa"></entry>
+            <entry key="testB" value="bbb"></entry>
+            <entry key="testC" value="ccc"></entry>
+        </map>
+    </property>
+
+    <property name="myProps">
+        <props>
+            <prop key="testA">aaa</prop>
+            <prop key="testB">bbb</prop>
+            <prop key="testC">ccc</prop>
+        </props>
+    </property>
 </bean>
 ```
 
@@ -307,1016 +565,234 @@ xml文件
 
 
 
-setter方法属性注入
+
+
+
+
+
+
+
+
+### 基于注解的 IoC 配置
+
+在类中添加一些注解实现 IoC
+
+
+
+@Component
+
+@Controller
+
+@Service
+
+@Repository
+
+
+
+
+
+涉及属性注入的注解：
+
+@Autowired：**自动按照类型注入**
+
+使用注解方式注入的时候，set 方法就不是必须的了。
+
+
+
+```java
+@Component()
+public void 
+```
+
+
+
+Spring 容器是一个 Map 结构，
+
+![image-20200907214249220](C:\Users\Paul\Pictures\typora\Spring\Autowired自动按照类型注入.png)
+
+
+
+当实现类不是唯一的时候，会报错
+
+首先会根据数据类型找到相应的范围，然后会根据变量名称找id。
+
+
+
+
+
+上面的解决方式显然不是我们想要的。
+
+@Qualifier
+
+
+
+
+
+
+
+@Resource
+
+
+
+总结：以上三个注解都只能注入其他bean类型的数据，而基本类型和String类型无法使用上述注解实现。另外，集合类型的注入只能通过XML的方式实现
+
+
+
+
+
+基于 XML 的 IoC 小案例
+
+创建一个 maven 工程，在 pom.xml 文件中引入依赖
 
 ```xml
-<!--setter方法属性注入-->
-<bean id="person" class="com.imooc.ioc.demo4.Person">
-	<property name="name" value="李四"/>
-	<property name="age" value="32"/>
-</bean>
-```
-
-普通类型的值使用value，对象类型的值使用ref。
-
-
-
-p名称空间
-
-```xml
-p:<属性名>="xxx" 引入常量值
-p:<>-ref="xxx"引用其他Bean对象
+<dependencies>
+	<dependency>
+    	<
+    </dependency>
+</dependencies>
 ```
 
 
 
 
 
-SpEL注入
 
-spring expression language，spring表达式语言，对依赖注入进行简化
 
+
+
+首先创建一个实体类对象 Account
+
+```java
+public class Account {
+    private Integer id;
+    private String name;
+    private Float money;
+    
+    /*
+    setter and getter method
+    */
+}
 ```
-SpEL表达式语言
-语法：#{}
-#{'hello'}：使用字符串
-#{beanId}：使用另一个bean
-#{beanId.content.toUpperCase()}：使用指定名属性，并使用方法
-#{T(java.lang.Math).PI}：使用静态字段或者方法
-```
 
 
 
+然后
 
 
-复杂类型的属性注入
 
-比如数组，集合等，主要用在Spring整合其他的框架时，框架里定义了Bean等
 
-- 数组类型的属性注入
 
+基于注解的 IoC 小案例
 
 
-- List集合类型的属性注入
 
 
 
-
-
-- Set集合类型的属性注入
-
-
-
-
-
-- Map集合类型的属性注入
-
-
-
-
-
-- Properties类型的属性注入
-
-
-
-
-
-### 注解方式
-
-
-
-
-
-
-
-
-
-## 传统XML配置和注解混合使用
-
-- XML方式的优势
-  - 结构清晰，易于阅读
-- 注解方式的优势
-  - 开发便捷，属性注入方便
-
-
-
-- XML与注解的整合开发
-
-1. 引入context命名空间
-2. 在配置文件中添加context:annotation-config标签
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## Spring 的 AOP
+## Spring AOP
 
 
 
 什么是 AOP？
 
-面向切面编程，通过预编译方式和运行期动态代理实现程序功能的统一维护的一种技术。
 
-采用横向抽取机制，取代了传统从继承体系的重复性代码（性能监控，事务管理，安全检查和缓存）
 
-AOP 使用纯 Java 代码实现，不需要专门的编译过程和类加载器，在运行期间通过代理方式向目标类织入增强代码。
 
 
+为什么需要 AOP？
 
 
 
-```
-AOP
+正常执行 SQL 的步骤如下：
 
-public class UserDao {
-	public void save() {
-		// 保存用户
-	}
-	
-}
-```
+1. 打开数据库连接池获得数据库连接资源
+2. 执行相应的 SQL 语句，对数据进行操作
+3. 如果 SQL 执行过程发生异常，回滚事务
+4. 如果 SQL 执行阶段没有发生异常，最后提交事务
+5. 到最后的阶段，需要关闭一些连接资源
 
-需要在保存用户之前进行权限校验，必须是管理员才能操作。
 
 
+如果是 Spring AOP
 
-纵向继承
+可以按照如下的方式实现：
 
-```java
-public class BaseDaoImpl {
-    public void checkPrivilege() {
-        //
-    }
-}
+1. 打开数据库连接在 before 方法中完成
+2. 执行 SQL，按照读者的逻辑会采取反射的机制调用
+3. 如果发生异常，则回滚事务；如果没有发生异常，则提交事务，然后关闭数据库连接资源
 
-public class UserDaoImpl extends BaseDaoImpl {
-    public void save(User user) {
-        checkPrivilege();
-        // 保存用户
-        
-    }
-    ...
-}
-```
 
-使用AOP来解决这些问题，采用横向抽取机制（代理机制）来取代传统方式的继承。
 
-```java
-public class UserDaoImpl implements UserDao {
-    public void save(User user) {
-        // 保存用户
-    }
-}
-```
 
-使用 JDK 的动态代理对实现了 UserDao 的类产生一个代理对象。在代理对象中对 save 方法进行增强。
 
 
 
-### AOP的相关术语
+AOP 的术语
 
-| 相关术语             | 解释                                                         |
-| -------------------- | ------------------------------------------------------------ |
-| Joinpoint（连接点）  | 就是那些被拦截的点。在Spring中，这些点指的是方法，因为Spring只支持方法类型的连接点 |
-| Pointcut（切入点）   | 对哪些Jointpoint进行拦截的定义                               |
-| Advice（通知/增强）  | 拦截到Joinpoint之后要做的事情就是通知，分为前置通知，后置通知，异常通知，最终通知，环绕通知（切面要完成的功能） |
-| Introduction（引介） | 一种特殊的通知，在不修改类代码的前提下，可以在运行期为类动态地添加一些方法或者Field（不需要管类层面的增强） |
-| Target（目标对象）   | 代理的目标对象                                               |
-| Weaving（织入）      | 指的是把增强应用到目标对象来创建新的代理对象的过程。Spring采用动态代理织入，而AspectJ采用编译期织入和类装载期织入 |
-| Proxy（代理）        | 一个类被AOP织入增强后，就产生一个结果代理类                  |
-| Aspect（切面）       | 切入点和通知（引介）的结合                                   |
 
-```java
-public class UserDaoImpl implements UserDao {
-    public void save(User user) {
-        
-    }
-    
-    public void update(User user) {
-        
-    }
-    
-    public List find() {
-        
-    }
-    
-    public void delete(User user) {
-        
-    }
-}
-```
 
+- 切面
 
 
-增删改查这些方法都可以被增强，这些方法称为连接点。
 
-只想对save方法进行增强（做权限校验），save方法被称为切入点。
 
-对save方法进行权限校验，权限校验的方法称为通知。
 
-UserDaoImpl就是要增强的对象，Target
+- 通知
 
-将Advice应用到Target的过程就叫做织入。（将权限校验应用到UserDaoImpl的save方法的过程）
+前置通知
 
-Proxy（代理）：被应用了增强后，产生一个代理对象。
 
 
+后置通知
 
-### AOP 的底层实现
 
-JDK动态代理实现
 
-```java
-public class MyJdkProxy {
-    public Object createProxy() {
-        
-    }
-}
-```
 
 
+返回通知
 
 
 
 
 
+异常通知
 
 
-CGLIB实现动态代理
 
+环绕通知
 
 
 
+- 引入
 
 
 
 
 
-代理知识总结
 
-Spring在运行期，生成动态代理对象，不需要特殊的编译器
 
-Spring AOP 的底层就是通过 JDK 动态代理或者 CGLib 动态代理技术为目标 Bean 执行横向织入
+- 切点
 
-1. 若目标对象实现了若干接口，Spring使用 JDK 的 java.lang.reflect.Proxy 类代理。
-2. 若目标对象没有实现任何接口，Spring使用 CGLib 库生成目标对象的子类。
 
 
 
-程序中应优先对接口创建代理，便于程序解耦合。
 
-标记为final的方法，不能被代理，因为无法进行覆盖。
+- 连接点
 
-- JDK 动态代理，是针对接口生成子类，接口种方法不能使用 final 修饰。
-- CGLib 是针对目标类产生子类，因此类或者方法不能使用 final 修饰。
 
-Spring 只支持方法连接点，不提供属性连接点。
 
 
 
-Spring AOP 增强类型
 
-AOP 联盟为通知 Advice 定义了 org.aopalliance.Interface.Advice
 
-Spring 按照通知 Advice 在目标类方法的连接点位置，可以分为5类
+- 织入
 
-- 前置通知org.springframework.aop.MethodBeforeAdvice
-  - 在目标方法执行前实施增强
-- 后置通知org.springframework.aop.AfterReturningAdvice
-  - 在目标方法执行后实施增强
+生成动态代理的过程。
 
-- 环绕通知org.springframework.aop.MethodIntercepter
-  - 在目标方法执行前后实施增强
-- 异常抛出通知org.springframework.aop.ThrowsAdvice
-  - 在方法抛出异常后实施增强
 
 
+![image-20200907200011629](C:\Users\Paul\Pictures\typora\Spring\spring-03.png)
 
-Spring AOP 切面类型
 
-Advisor：代表一般切面，Advisor 本身就是一个切面，对目标类所有方法进行拦截
 
-PointcutAdvisor：代表具有切面的切面，可以指定拦截目标类哪些方法。
-
-IntroductionAdvisor：
-
-
-
-不需要写 JDK 动态代理或者 CGLib 动态代理的代码了。
-
-
-
-
-
-
-
-### Spring 对 AOP 的支持
-
-
-
-Advisor 切面案例
-
-
-
-使用普通Advice作为切面，会对目标类中的所有方法都进行拦截（增强），不够灵活，在实际开发过程中常用带有切点的切面。
-
-
-
-PointcutAdvice 切点切面
-
-常用的 PointcutAdvice 实现类
-
-- DefaultPointcutAdvice 最常用的切面类型它可以通过任意的Pointcut和Advice组合定义切面
-- JdkRegexpMethodPointcut 构造正则表达式切点
-
-
-
-
-
-## 使用AspectJ 注解开发 Spring AOP
-
-灵活，方便操作。
-
-
-
-提供的不同的通知类型
-
-@Before 前置通知，相当于 BeforeAdvice
-
-@AfterReturning 后置通知，相当于 AfterReturningAdvice
-
-@Around 环绕通知，相当于 MethodInterceptor
-
-@AfterThrowing 异常抛出通知，相当于 ThrowAdvice
-
-@After 最终 final 通知，不管是否异常，该通知都会执行
-
-@DeclareParents 引介通知，相当于
-
-
-
-在通知中通过 value 属性定义切点
-
-通过 execution 函数，可以定义切点的方法切入
-
-语法：
-
-```
-execution(<访问修饰符>?<返回类型><方法名>(<参数>)<异常>)
-
-# 匹配所有类的 public 方法
-execution(public * * (..))
-# 匹配指定包下的所有类方法
-execution(* com.imooc.dao.* (..)) # 不包含子包
-execution(* com.imooc.dao..* (..)) # 包含子包
-
-# 匹配指定类所有方法
-execution(* com.imooc.service.UserService.* (..))
-
-# 匹配实现特定接口所有类方法
-execution(* com.imooc.dao.GenericDAO+.*(..))
-
-# 匹配所有 save 开头的方法
-execution(* save* (..))
-```
-
-
-
-为目标类，定义切面类
-
-MyAspectAnno.java
-
-```java
-@Aspect
-public class MyAspectAnno() {
-    @Before(execution())
-}
-```
-
-
-
-
-
-### @Before 前置通知
-
-可以在方法中传入 JoinPoint 对象，用来获得切点信息
-
-```java
-// 要增强的代码
-@Before(value="execution(* com.imooc.aspectJ.demo1.ProductDao.save(..))")
-public void before(JoinPoint joinPoint) {
-    System.out.println("===========前置通知===========" + joinPoint);
-}
-```
-
-
-
-### @AfteReturning 后置通知
-
-通过 returning 属性可以定义返回值，作为参数
-
-```java
-@AfterReturning(value="execution(* com.imooc.aspectJ.demo1.ProductDao.update(..))", returning = "result")
-public void afterReturning(Object result) {
-    System.out.println("======后置通知=====" + result);
-}
-```
-
-
-
-
-
-### @Around 环绕通知
-
-around 方法的返回值就是目标代理方法执行返回值
-
-参数为 ProceedingJoinPoint 可以调用拦截目标方法执行
-
-```java
-// 环绕通知
-@Around(value="execution(* com.imooc.aspectJ.demo1.ProductDao.delete(..))")
-public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
-    System.out.println("环绕前通知");
-    Object obj = joinPoint.proceed(); // 执行目标方法
-    System.out.println("环绕后通知");
-    return obj;
-}
-```
-
-如果不调用 ProceedingJoinPoint 的 proceed 方法，那么目标函数就被拦截了。
-
-
-
-### @AfterThrowing 异常抛出通知
-
-通过设置 throwing 属性，可以设置发生异常对象参数
-
-```java
-// 
-@AfterThrowing(value="execution(* com.imooc.aspectJ.demo1.ProductDao.findAll(..))", throwing = "e")
-public void afterThrowing(Throwable e) {
-    System.out.println("======异常通知=====" + e);
-}
-```
-
-
-
-### @After 最终通知
-
-无论是否有异常，最终通知都会被执行
-
-```java
-// 最终通知
-@After(value="execution(* com.imooc.aspectJ.demo1.ProductDao.findOne(..))")
-public void after() {
-    System.out.println("=====最终通知=====");
-}
-```
-
-
-
-
-
-### 通过 @Pointcut 为切点命名
-
-在每个通知内定义切点，会造成工作量大，不易维护，对于重复的切点，可以使用 @Pointcut 进行定义。
-
-切点方法：private void 无参数方法，方法名为切点名
-
-当通知多个切点时，可以使用||进行连接
-
-```java
-@Pointcut(value="execution(* com.imooc.aspectJ.demo1.ProductDao.save(..))")
-public void myPointcut() {}
-```
-
-
-
-```java
-@Before(value="myPointcut()")
-public void before(JoinPoint joinPoint) {
-    System.out.println("===========前置通知===========" + joinPoint);
-}
-```
-
-
-
-
-
-
-
-
-
-
-
-## 使用 XML 配置开发 Spring AOP
-
-使用 XML 配置切面
-
-第一步：引入 jar 包，spring
-
-第二步：创建一个配置文件
-
-
-
-定义一个切面类
-
-```java
-
-```
-
-
-
-
-
-
-
-
-
-配置 AOP 的增强
-
-```xml
-<!--XML的配置方式完成AOP的开发-->
-<!--配置目标类-->
-<bean id="customerDao" class="com.imooc.aspectJ.demo2.CustomerDaoImpl"/>
-
-<!--配置切面类-->
-<bean id="myAspectXml" class="com.imooc.aspectJ.demo2.MyAspectXml"/>
-
-<aop:config>
-    
-    <!--配置切入点：哪些方法需要增强-->
-    <aop:pointcut id="pointcut1" expression="execution(* com.imooc.aspectJ..demo2.CustomerDao.save(..))"/>
-    <aop:pointcut id="pointcut2" expression="execution(* com.imooc.aspectJ..demo2.CustomerDao.update(..))"/>
-    <aop:pointcut id="pointcut3" expression="execution(* com.imooc.aspectJ..demo2.CustomerDao.delete(..))"/>
-    <aop:pointcut id="pointcut4" expression="execution(* com.imooc.aspectJ..demo2.CustomerDao.findOne(..))"/>
-    <aop:pointcut id="pointcut5" expression="execution(* com.imooc.aspectJ..demo2.CustomerDao.findAll(..))"/>
-    
-    <!--配置AOP的切面-->
-    <aop:aspect ref="myAspectXml">
-        <!--配置前置通知-->
-        <aop:before method="before" pointcut-ref="pointcut1"/>
-        <!--配置后置通知-->
-        <aop:after-returning method="afterReturning" pointcut-ref="pointcut2"/>
-        <!--配置环绕通知-->
-        <aop:around method="around" pointcut-ref="pointcut3"/>
-        <!--配置异常通知-->
-        <aop:after-throwing method="afterThrowing" pointcut-ref="pointcut4"/>
-        <!--配置最终通知-->
-        <aop:after method="after" pointcut-ref="pointcut5"/>
-    </aop:aspect>
-    
-</aop:config>
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## JDBC Template
-
-使用 Spring 组件 JDBC Template 简化持久化操作
-
-为了简化持久化操作，Spring 在 JDBC API 之上提供了 JDBC Template 组件。
-
-程序员代码→JDBC Template→JDBC API→JDBC 驱动→数据库
-
-不直接操作 JDBC API，代码比较繁琐。
-
-在保留代码灵活性的基础上，尽量减少持久化代码。
-
-
-
-
-
-
-
-需要提前掌握的知识：
-
-JDBC
-
-Spring IoC
-
-Spring AOP
-
-MySQL
-
-
-
-
-
-概念
-
-
-
-
-
-环境配置
-
-引入 jar 包
-
-
-
-配置数据库
-
-```xml
-<!--dataSource配置-->
-<bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
-    <property name="driverClassName" value="com.mysql.jdbc.Driver"/>
-    <property name="url" value="jdbc:mysql://localhost:3306/selection_course?useUnicode=true&amp;&amp;characterEncoding=utf-8"/>
-    <property name="username" value="root"/>
-    <property name="password" value="123456"/>
-</bean>
-
-<!--通过这个id可以得到实例-->
-<bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
-    <!--注入属性-->
-    <property name="dataSource" ref="dataSource"/>
-</bean>
-```
-
-
-
-
-
-
-
-
-
-基本操作
-
-execute 方法
-
-```java
-@Test
-public void testExecute() {
-    sql = "";
-    jdbcTemplate.execute(sql);
-}
-```
-
-
-
-
-
-update 与 batchUpdate 方法
-
-update 方法对数据进行增删改查操作
-
-```java
-int update(String sql, Object[] args);
-int update(String sql, Object...args);
-```
-
-
-
-batchUpdate 方法批量增删改操作
-
-```java
-int[] batchUpdate(String[] sql);
-int[] batchUpdate(String sql, List<Object[]> args);
-```
-
-
-
-
-
-
-
-查询方法
-
-query 与 queryXXX 方法
-
-获取一个
-
-```
-T queryForObject(String sql, Class<T> type)
-T queryForObject(String sql, Object[] args, Class<T> type)
-T queryForObject(String sql, Class<T> type, Object...args)
-```
-
-
-
-获取多个
-
-```
-List<T> queryForList(String sql, Class<T> type)
-List<T> queryForList(String sql, Object[] args, Class<T> type)
-List<T> queryForList(String sql, Class<T> type, Object...args)
-```
-
-
-
-
-
-call 方法
-
-
-
-
-
-持久层
-
-
-
-
-
-
-
-
-
-优缺点分析
-
-
-
-
-
-
-
-
-
-
-
-
-
-## Spring 事务管理
-
-### Java 事务导引
-
-什么是事务？
-
-事务是正确执行一系列的操作（或动作），使得数据库从一种状态转换为另一种状态，并且保证操作全部成功，或者全部失败。
-
-
-
-
-
-事务的原则性内容
-
-必须服从 ISO/IEC 所制定的 ACID 原则
-
-ACID 原则具体内涵如下：
-
-- 原子性（Atomicity）：即不可分割，事务要么全部执行，要不就全部不被执行
-- 一致性（Consistency）：事务的执行使得数据库从一种正确状态转换成另一种正确状态
-- 隔离性（Isolation）：在事务正确提交之前，它可能的结果不应显示给任何其他事务。
-- 持久性（Durability）：事务正确提交后，其结果将永久保存在数据库中。
-
-为了保证数据操作的安全性。
-
-
-
-事务和 Java 的关系
-
-Java 事务的产生，程序操作数据库的需要。在 Java 编写的程序或者系统中，实现 ACID 的操作。
-
-事务实现的范围
-
-- 通过 JDBC 相应方法间接来实现对数据库的**增删改查**，把事务转移到 Java 程序代码中进行控制。
-- 确保事务要么全部成功，要么撤销不执行。
-
-
-
-事务的实现方式
-
-JDBC 事务：用 Connection 对象控制，包括手动模式和自动模式。
-
-JTA（Java Transation API）：与实现无关的，与协议无关的 API。
-
-容器事务：应用服务器提供的，且大多是基于 JTA 完成（通常基于 JNDI 的，相当复杂的 API 实现）
-
-
-
-三种事务的差异：
-
-JDBC事务：控制的局限性在一个数据库连接内，但是其使用简单。
-
-JTA（Java Transation API）：功能强大，可阔约多个数据库或者多 DAO，使用比较复杂。
-
-容器事务：主要指的是 J2EE 应用服务器提供的事务管理，局限与 EJB
-
-
-
-
-
-### Spring 事务核心接口
-
-
-
-三个核心接口
-
-事务定义接口
-
-事务管理接口
-
-事务状态接口
-
-![事务接口架构](C:\Users\Paul\Pictures\Java\事务接口架构.png)
-
-
-
-JDBC
-
-
-
-
-
-Spring 事务属性
-
-事务属性范围：
-
-- 传播行为
-
-- 隔离规则
-
-- 回滚规则
-
-- 事务超时
-
-- 是否只读？
-
-通过下面这个接口实现事务属性的定义
-
-```java
-public interface TransactionDefinition {
-    // 返回事务的传播行为
-    int getPropagationBehavior();
-    // 返回事务的隔离级别，事务管理器根据它来控制另外一个事务可以看到本事务内的哪些数据
-    int getIsolationLevel();
-    // 返回事务必须在多少秒内完成
-    int getTimeout();
-    // 这个返回值进行优化，确保事务是只读的
-    boolean isReadOnly();
-}
-```
-
-
-
-事务读取类型：
-
-脏读：事务没提交，提前读取
-
-不可重复读：两次读取的数据不一致
-
-![不可重复读](C:\Users\Paul\Pictures\Java\不可重复读.png)
-
-幻读：事务不是独立执行时发生的一种非预期现象
-
-比如：事务1在修改数据，另一个事务在增加数据
-
-![幻读](C:\Users\Paul\Pictures\Java\幻读.png)
-
-
-
-事务隔离级别
-
-定义了一个事务可能受其他并发事务影响的程度
-
-![事务隔离级别](https://raw.githubusercontent.com/paul0316/picgo/master/img/%E4%BA%8B%E5%8A%A1%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB.png)
-
-
-
-
-
-
-
-### 编程式事务管理
-
-
-
-
-
-
-
-
-
-### 事务最佳实践
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Spring 并不是 Spring 特有的，Spring 只是支持
 
